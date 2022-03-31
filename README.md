@@ -35,6 +35,8 @@ ShardingSphere 中 使用单表 app_format_no 的使用方式 该表主要是为
 工具的选择：建议使用mysql 官方提供的工具 MySQL Workbench <br>
 创建ds0和ds1表空间 <br>
 导入数据：导入doc\tables <br>
+执行  sql  create-ds0.sql 和 create-ds1.sql
+在 ds0 和 ds1 中执行 undo_log.sql 语句
 #### 2.引入项目
 通过maven方式导入项目
 
@@ -53,13 +55,12 @@ enableDegrade = false <br>
 disable = false <br>
 }
 #### 2.启动  Seata <br>
-
+首先删除 seata-server-1.4.2/bin/sessionStore 的 root.data 文件 不然会报错 <br>
 具体可以参考他们的官方文档 http://seata.io/en-us/docs/user/quickstart.html <br>
 windows下面执行 <br>
 .\seata-server.bat -p 8091 -h 127.0.0.1 -m file <br>
 linux <br>
 sh seata-server.sh -p 8091 -h 127.0.0.1 -m file <br>
-首先删除 seata-server-1.4.2/bin/sessionStore 的 root.data 文件 不然会报错 <br>
 现在存在的问题：json decode exception, Cannot construct instance of `java.time.LocalDateTime` (no Creators, like default construct, exist): cannot deserialize from Object value (no delegate- or property-based Creator)<br>
 问题原因不明，根据官方的说法：只有1.4.2版本才能解决 <br>
 所以现在用的是XA事物 <br>
