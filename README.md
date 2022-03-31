@@ -35,8 +35,8 @@ ShardingSphere 中 使用单表 app_format_no 的使用方式 该表主要是为
 工具的选择：建议使用mysql 官方提供的工具 MySQL Workbench <br>
 创建ds0和ds1表空间 <br>
 导入数据：导入doc\tables <br>
-执行  sql  create-ds0.sql 和 create-ds1.sql
-在 ds0 和 ds1 中执行 undo_log.sql 语句
+执行  sql  create-ds0.sql 和 create-ds1.sql <br>
+在 ds0 和 ds1 中执行 undo_log.sql 语句 <br>
 #### 2.引入项目
 通过maven方式导入项目
 
