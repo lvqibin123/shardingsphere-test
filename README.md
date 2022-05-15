@@ -255,4 +255,4 @@ rules:
 windows 双击 shardingsphere-proxy-5.1.1-bin/bin/start.bat 即可
 linux 执行 ./shardingsphere-proxy-5.1.1-bin/bin/start.sh 即可
 #### 3.使用 shardingsphere-proxy 
-用户名和密码为shardingsphere-proxy-5.1.1-bin/conf/server.yaml重配置的用户名
+用户名和密码为shardingsphere-proxy-5.1.1-bin/conf/server.yaml重配置的用户名 连接端口号为3307
