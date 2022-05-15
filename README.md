@@ -8,7 +8,7 @@ ShardingSphere 中 使用单表 app_format_no 的使用方式 该表主要是为
 ### 一、系统环境
 ## 1.java 环境 openjdk11
 ## 2.数据库 mysql 5.7.17 以上
-## 3.后台框架spring boot2.3.7.RELEASE mybatis-plus3.4.0、ShardingSphere 5.1.0
+## 3.后台框架spring boot2.3.7.RELEASE mybatis-plus3.4.0、ShardingSphere 5.1.1
 ### 二、文件目录介绍
 #### MyShardingSphere 项目更目录
 
@@ -73,3 +73,186 @@ Seata 柔性事务已经解决 <br>
 3.根据用户id 生成订单测试 http://192.168.43.173:8080/myShardingSphere/appGoodsOrder/addGoodsOrder?userId= <br>
 4.根据用户id 查询订单测试 http://192.168.43.173:8080/myShardingSphere/appGoodsOrder/search?pi=1&ps=1000&userId= <br>
 5.添加人和订单测试分布事物测试 http://192.168.43.173:8080/myShardingSphere/appGoodsOrder/addUserAndGoodsOrder <br>
+
+### 四、shardingsphere-proxy 的使用
+shardingsphere-proxy 的意义在于我们可以像平时使用sql一样查询数据，shardingsphere-proxy可以为我们进行sql转换
+#### 1.修改配置文件
+shardingsphere-proxy-5.1.1-bin/conf/server.yaml
+修改内容如果 
+rules:
+- !AUTHORITY
+  users:
+    - root@%:lqb594107 #此处踩坑 配置的意思是 用该用户名和密码进行登录 不能用数据库给定的用户名和密码
+    - sharding@:lqb594107  #此处踩坑 配置的意思是 用该用户名和密码进行登录 不能用数据库给定的用户名和密码
+      provider:
+      type: ALL_PRIVILEGES_PERMITTED
+- !TRANSACTION
+  defaultType: XA
+  providerType: Atomikos
+  # When the provider type is Narayana, the following properties can be configured or not
+  props:
+  recoveryStoreUrl: jdbc:mysql://127.0.0.1:3306/jbossts
+  recoveryStoreDataSource: com.mysql.jdbc.jdbc2.optional.MysqlDataSource
+  recoveryStoreUser: root
+  recoveryStorePassword: 12345678
+- !SQL_PARSER
+  sqlCommentParseEnabled: true
+  sqlStatementCache:
+  initialCapacity: 2000
+  maximumSize: 65535
+  concurrencyLevel: 4
+  parseTreeCache:
+  initialCapacity: 128
+  maximumSize: 1024
+  concurrencyLevel: 4
+
+props:
+max-connections-size-per-query: 1
+kernel-executor-size: 16  # Infinite by default.
+proxy-frontend-flush-threshold: 128  # The default value is 128.
+proxy-hint-enabled: false
+sql-show: true
+check-table-metadata-enabled: false
+show-process-list-enabled: false
+# Proxy backend query fetch size. A larger value may increase the memory usage of ShardingSphere Proxy.
+# The default value is -1, which means set the minimum value for different JDBC drivers.
+proxy-backend-query-fetch-size: -1
+check-duplicate-table-enabled: false
+proxy-frontend-executor-size: 0 # Proxy frontend executor size. The default value is 0, which means let Netty decide.
+# Available options of proxy backend executor suitable: OLAP(default), OLTP. The OLTP option may reduce time cost of writing packets to client, but it may increase the latency of SQL execution
+# and block other clients if client connections are more than `proxy-frontend-executor-size`, especially executing slow SQL.
+proxy-backend-executor-suitable: OLAP
+proxy-frontend-max-connections: 0 # Less than or equal to 0 means no limitation.
+sql-federation-enabled: false
+# Available proxy backend driver type: JDBC (default), ExperimentalVertx
+proxy-backend-driver-type: JDBC
+
+shardingsphere-proxy-5.1.1-bin/conf/config-sharding.yaml
+schemaName: sharding_db
+dataSources:
+ds0:
+url: jdbc:mysql://127.0.0.1:3306/ds0?useUnicode=true&useSSL=false&characterEncoding=utf8&serverTimezone=GMT%2b8&rewriteBatchedStatements=true&allowMultiQueries=true
+username: root
+password: lqb594107
+connectionTimeoutMilliseconds: 30000
+idleTimeoutMilliseconds: 60000
+maxLifetimeMilliseconds: 1800000
+maxPoolSize: 50
+minPoolSize: 1
+ds1:
+url: jdbc:mysql://127.0.0.1:3306/ds1?useUnicode=true&useSSL=false&characterEncoding=utf8&serverTimezone=GMT%2b8&rewriteBatchedStatements=true&allowMultiQueries=true
+username: root
+password: lqb594107
+connectionTimeoutMilliseconds: 30000
+idleTimeoutMilliseconds: 60000
+maxLifetimeMilliseconds: 1800000
+maxPoolSize: 50
+minPoolSize: 1
+rules:
+- !SHARDING
+  tables:
+  # 配置 app_hdr_user 表规则
+  app_hdr_user:
+  actualDataNodes: ds0.app_hdr_user$->{[0,2,4,6,8]},ds1.app_hdr_user$->{[1,3,5,7,9]}
+  # 配置分库策略
+  databaseStrategy:
+  standard:
+  shardingColumn: id
+  shardingAlgorithmName: app_hdr_user_database_inline
+  # 配置分表策略
+  tableStrategy:
+  standard:
+  shardingColumn: id
+  shardingAlgorithmName: app_hdr_user_database_inline
+  keyGenerateStrategy:
+  column: id
+  keyGeneratorName: SNOWFLAKE
+  # 配置 app_goods_order 表规则
+  app_goods_order:
+  actualDataNodes: ds0.app_goods_order$->{[0,2,4,6,8]},ds1.app_goods_order$->{[1,3,5,7,9]}
+  # 配置分库策略
+  databaseStrategy:
+  standard:
+  shardingColumn: user_id
+  shardingAlgorithmName: user_id_database_inline
+  # 配置分表策略
+  tableStrategy:
+  standard:
+  shardingColumn: user_id
+  shardingAlgorithmName: app_goods_order_table_inline
+  keyGenerateStrategy:
+  column: id
+  keyGeneratorName: SNOWFLAKE
+  # 配置 app_goods_order_detail 表规则
+  app_goods_order_detail:
+  actualDataNodes: ds0.app_goods_order_detail$->{[0,2,4,6,8]},ds1.app_goods_order_detail$->{[1,3,5,7,9]}
+  # 配置分库策略
+  databaseStrategy:
+  standard:
+  shardingColumn: user_id
+  shardingAlgorithmName: user_id_database_inline
+  # 配置分表策略
+  tableStrategy:
+  standard:
+  shardingColumn: user_id
+  shardingAlgorithmName: app_goods_order_detail_table_inline
+  keyGenerateStrategy:
+  column: id
+  keyGeneratorName: SNOWFLAKE
+  # 配置 app_format_no 表规则
+  app_format_no:
+  actualDataNodes: ds0.app_format_no
+  # 配置 undo_log 表规则
+  undo_log:
+  actualDataNodes: ds0.undo_log,ds0.undo_log
+  bindingTables:
+    - app_hdr_user
+    - app_goods_order
+    - app_goods_order_detail
+    - app_format_no
+    - undo_log
+
+  shardingAlgorithms:
+  app_hdr_user_database_inline:
+  type: INLINE
+  props:
+  algorithm-expression: ds$->{id % 2}
+  app_hdr_user_table_inline:
+  type: INLINE
+  props:
+  algorithm-expression: app_hdr_user$->{id % 10}
+  user_id_database_inline:
+  type: INLINE
+  props:
+  algorithm-expression: ds$->{user_id % 2}
+  app_goods_order_table_inline:
+  type: INLINE
+  props:
+  algorithm-expression: app_goods_order$->{user_id % 10}
+  app_goods_order_detail_table_inline:
+  type: INLINE
+  props:
+  algorithm-expression: app_goods_order_detail$->{user_id % 10}
+
+  keyGenerators:
+  snowflake:
+  type: SNOWFLAKE
+  props:
+  worker-id: 123456789
+- !ENCRYPT
+  encryptors:
+  aes_encryptor:
+  type: AES
+  props:
+  aes-key-value: kkeqAXU6Ur4s7eGHaO4Lb2V2ggausYSS
+  tables:
+  app_hdr_user:
+  columns:
+  password:
+  cipherColumn: password
+  encryptorName: aes_encryptor
+#### 2.启动 shardingsphere-proxy 
+windows 双击 shardingsphere-proxy-5.1.1-bin/bin/start.bat 即可
+linux 执行 ./shardingsphere-proxy-5.1.1-bin/bin/start.sh 即可
+#### 3.使用 shardingsphere-proxy 
+用户名和密码为shardingsphere-proxy-5.1.1-bin/conf/server.yaml重配置的用户名
